@@ -1,0 +1,62 @@
+name: Deploy
+# Khai báo biến toàn cục
+env:
+  LINK_ADMIN: "https://api.render.com/deploy/srv-d504ssmr433s73ehd1fg?key=S1Xy9cNgY6I"
+  LINK_FRONTEND: "https://api.render.com/deploy/srv-d504s33uibrs73drplu0?key=Mn88CJx9z6s"
+  LINK_BACKEND: "https://api.render.com/deploy/srv-d504o8ruibrs73drnapg?key=C1otVYrkjRQ"
+
+on:
+  push:
+    branches:
+      - DeployBranch
+  workflow_dispatch: # Cho phép bấm nút chạy tay để test ngay lập tức
+
+jobs:
+  # JOB 1: CHECK CHANGES
+  check-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          # QUAN TRỌNG: Sửa lại đường dẫn cho đúng với cấu trúc thư mục thật của bạn
+          filters: |
+            backend:
+              - 'Fast_Food_Delivery/backend/**'
+            frontend:
+              - 'Fast_Food_Delivery/frontend/**'
+            admin:
+              - 'Fast_Food_Delivery/admin/**'
+
+  # JOB 2: DEPLOY BACKEND
+  deploy-backend:
+    needs: check-changes
+    # Logic: Chạy nếu có thay đổi backend HOẶC bấm nút chạy tay
+    if: ${{ needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Backend Deploy
+        run: curl "${{ env.LINK_BACKEND }}"  # Đã sửa lỗi thừa chữ curl
+
+  # JOB 3: DEPLOY FRONTEND
+  deploy-frontend:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Frontend Deploy
+        run: curl "${{ env.LINK_FRONTEND }}"
+
+  # JOB 4: DEPLOY ADMIN
+  deploy-admin:
+    needs: check-changes
+    if: ${{ needs.check-changes.outputs.admin == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Admin Deploy
+        run: curl "${{ env.LINK_ADMIN }}"  # Đã sửa lỗi thừa chữ curl

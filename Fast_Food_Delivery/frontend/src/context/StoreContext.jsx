@@ -1,11 +1,11 @@
 import { createContext, useEffect, useState } from "react";
-import {  menu_list } from "../assets/assets";
+import { menu_list } from "../assets/assets";
 import axios from "axios";
 export const StoreContext = createContext(null);
 
 const StoreContextProvider = (props) => {
 
-    const url = "https://backend-deploy-zk5w.onrender.com"
+    const url = "http://localhost:4000"
     const [food_list, setFoodList] = useState([]);
     const [cartItems, setCartItems] = useState({});
     const [token, setToken] = useState("")
@@ -13,19 +13,19 @@ const StoreContextProvider = (props) => {
     const deliveryCharge = 50;
 
     const addToCart = async (itemId, quantity = 1) => {
-  setCartItems((prev) => {
-    const currentQty = prev[itemId] || 0;
-    return { ...prev, [itemId]: currentQty + quantity };
-  });
+        setCartItems((prev) => {
+            const currentQty = prev[itemId] || 0;
+            return { ...prev, [itemId]: currentQty + quantity };
+        });
 
-  if (token) {
-    await axios.post(
-      url + "/api/cart/add",
-      { itemId, quantity }, // gửi cả số lượng
-      { headers: { token } }
-    );
-  }
-};
+        if (token) {
+            await axios.post(
+                url + "/api/cart/add",
+                { itemId, quantity }, // gửi cả số lượng
+                { headers: { token } }
+            );
+        }
+    };
 
     const removeFromCart = async (itemId) => {
         setCartItems((prev) => ({ ...prev, [itemId]: prev[itemId] - 1 }))
@@ -38,14 +38,14 @@ const StoreContextProvider = (props) => {
         let totalAmount = 0;
         for (const item in cartItems) {
             try {
-              if (cartItems[item] > 0) {
-                let itemInfo = food_list.find((product) => product._id === item);
-                totalAmount += itemInfo.price * cartItems[item];
-            }  
+                if (cartItems[item] > 0) {
+                    let itemInfo = food_list.find((product) => product._id === item);
+                    totalAmount += itemInfo.price * cartItems[item];
+                }
             } catch (error) {
-                
+
             }
-            
+
         }
         return totalAmount;
     }

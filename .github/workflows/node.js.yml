@@ -1,18 +1,21 @@
 name: Deploy
+
 # Khai báo biến toàn cục
 env:
   LINK_ADMIN: "https://api.render.com/deploy/srv-d504ssmr433s73ehd1fg?key=S1Xy9cNgY6I"
   LINK_FRONTEND: "https://api.render.com/deploy/srv-d504s33uibrs73drplu0?key=Mn88CJx9z6s"
   LINK_BACKEND: "https://api.render.com/deploy/srv-d504o8ruibrs73drnapg?key=C1otVYrkjRQ"
+  # Dán Secret Key trực tiếp vào đây theo yêu cầu của bạn
+  STRIPE_SECRET_KEY: "sk_test_dummy" 
 
 on:
   push:
     branches:
       - DeployBranch
-  workflow_dispatch: # Cho phép bấm nút chạy tay để test ngay lập tức
+  workflow_dispatch: 
 
 jobs:
-  # JOB 1: CHECK CHANGES
+  # JOB 1: Kiểm tra thay đổi trong Monorepo
   check-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -24,7 +27,6 @@ jobs:
       - uses: dorny/paths-filter@v3
         id: filter
         with:
-          # QUAN TRỌNG: Sửa lại đường dẫn cho đúng với cấu trúc thư mục thật của bạn
           filters: |
             backend:
               - 'Fast_Food_Delivery/backend/**'
@@ -33,17 +35,42 @@ jobs:
             admin:
               - 'Fast_Food_Delivery/admin/**'
 
-  # JOB 2: DEPLOY BACKEND
-  deploy-backend:
+  # JOB 2: CHẠY TEST BACKEND (Cổng kiểm soát chất lượng)
+  test-backend:
     needs: check-changes
-    # Logic: Chạy nếu có thay đổi backend HOẶC bấm nút chạy tay
+    # Chạy nếu backend có thay đổi HOẶC bấm nút chạy tay
     if: ${{ needs.check-changes.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Backend Deploy
-        run: curl "${{ env.LINK_BACKEND }}"  # Đã sửa lỗi thừa chữ curl
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: Fast_Food_Delivery/backend/package-lock.json
 
-  # JOB 3: DEPLOY FRONTEND
+      - name: Install Backend Dependencies
+        run: npm install
+        working-directory: Fast_Food_Delivery/backend
+
+      - name: Run Backend Tests ✅
+        env:
+          # Truyền biến môi trường vào quá trình chạy test
+          STRIPE_SECRET_KEY: ${{ env.STRIPE_SECRET_KEY }}
+        run: npm test
+        working-directory: Fast_Food_Delivery/backend
+
+  # JOB 3: DEPLOY BACKEND (Chỉ chạy khi Test Backend PASS)
+  deploy-backend:
+    needs: [check-changes, test-backend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Backend Deploy
+        run: curl "${{ env.LINK_BACKEND }}"
+
+  # JOB 4: DEPLOY FRONTEND
   deploy-frontend:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
@@ -52,11 +79,11 @@ jobs:
       - name: Trigger Frontend Deploy
         run: curl "${{ env.LINK_FRONTEND }}"
 
-  # JOB 4: DEPLOY ADMIN
+  # JOB 5: DEPLOY ADMIN
   deploy-admin:
     needs: check-changes
     if: ${{ needs.check-changes.outputs.admin == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Admin Deploy
-        run: curl "${{ env.LINK_ADMIN }}"  # Đã sửa lỗi thừa chữ curl
+        run: curl "${{ env.LINK_ADMIN }}"

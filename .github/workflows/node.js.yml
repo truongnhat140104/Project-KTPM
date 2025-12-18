@@ -13,7 +13,6 @@ on:
   workflow_dispatch: 
 
 jobs:
-  # JOB 1: CHECK CHANGES (Chỉ làm nhiệm vụ kiểm tra file)
   check-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -33,10 +32,10 @@ jobs:
             admin:
               - 'Fast_Food_Delivery/admin/**'
 
-  # JOB 2: TEST BACKEND (Chạy nếu Backend đổi HOẶC Bấm nút tay)
+  # JOB TEST: Tester chú ý - Đây là chốt chặn (Quality Gate)
   test-backend:
     needs: check-changes
-    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.backend == 'true'
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.backend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,36 +45,35 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: Fast_Food_Delivery/backend/package-lock.json
-      - name: Install Backend
-        run: npm install
+      - name: Install & Run Test
+        run: |
+          npm install
+          npm test
         working-directory: Fast_Food_Delivery/backend
-      - name: Run Backend Tests
         env:
           STRIPE_SECRET_KEY: ${{ env.STRIPE_SECRET_KEY }}
-        run: npm test
-        working-directory: Fast_Food_Delivery/backend
 
-  # JOB 3: DEPLOY BACKEND (Phụ thuộc vào Test thành công)
   deploy-backend:
     needs: [check-changes, test-backend]
+    # Job này không cần IF vì nó phụ thuộc vào test-backend đã có IF rồi
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Backend Deploy
         run: curl "${{ env.LINK_BACKEND }}"
 
-  # JOB 4: DEPLOY FRONTEND (Ép chạy khi Bấm nút tay)
   deploy-frontend:
     needs: check-changes
-    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.frontend == 'true'
+    # SỬA Ở ĐÂY: Thêm ngoặc ${{ }} bao quanh toàn bộ logic
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.frontend == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Frontend Deploy
         run: curl "${{ env.LINK_FRONTEND }}"
 
-  # JOB 5: DEPLOY ADMIN (Ép chạy khi Bấm nút tay)
   deploy-admin:
     needs: check-changes
-    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.admin == 'true'
+    # SỬA Ở ĐÂY: Thêm ngoặc ${{ }} bao quanh toàn bộ logic
+    if: ${{ github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.admin == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Admin Deploy

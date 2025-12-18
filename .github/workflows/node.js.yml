@@ -13,14 +13,13 @@ on:
   workflow_dispatch: 
 
 jobs:
-  # JOB 1: CHECK CHANGES
+  # JOB 1: CHECK CHANGES (Chỉ làm nhiệm vụ kiểm tra file)
   check-changes:
     runs-on: ubuntu-latest
     outputs:
-      # Fix logic: Nếu là chạy tay (workflow_dispatch) thì ép kết quả là 'true'
-      backend: ${{ steps.filter.outputs.backend == 'true' || github.event_name == 'workflow_dispatch' }}
-      frontend: ${{ steps.filter.outputs.frontend == 'true' || github.event_name == 'workflow_dispatch' }}
-      admin: ${{ steps.filter.outputs.admin == 'true' || github.event_name == 'workflow_dispatch' }}
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      admin: ${{ steps.filter.outputs.admin }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -33,19 +32,11 @@ jobs:
               - 'Fast_Food_Delivery/frontend/**'
             admin:
               - 'Fast_Food_Delivery/admin/**'
-      
-      # Bước Debug dành cho Tester: Kiểm tra xem Filter có chạy đúng không
-      - name: Debug Filter Outputs
-        run: |
-          echo "Backend changed: ${{ steps.filter.outputs.backend }}"
-          echo "Frontend changed: ${{ steps.filter.outputs.frontend }}"
-          echo "Admin changed: ${{ steps.filter.outputs.admin }}"
-          echo "Event Name: ${{ github.event_name }}"
 
-  # JOB 2: TEST BACKEND
+  # JOB 2: TEST BACKEND (Chạy nếu Backend đổi HOẶC Bấm nút tay)
   test-backend:
     needs: check-changes
-    if: ${{ needs.check-changes.outputs.backend == 'true' }}
+    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -55,37 +46,36 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: Fast_Food_Delivery/backend/package-lock.json
-      - name: Install Backend Dependencies
+      - name: Install Backend
         run: npm install
         working-directory: Fast_Food_Delivery/backend
-      - name: Run Backend Tests ✅
+      - name: Run Backend Tests
         env:
           STRIPE_SECRET_KEY: ${{ env.STRIPE_SECRET_KEY }}
         run: npm test
         working-directory: Fast_Food_Delivery/backend
 
-  # JOB 3: DEPLOY BACKEND
+  # JOB 3: DEPLOY BACKEND (Phụ thuộc vào Test thành công)
   deploy-backend:
     needs: [check-changes, test-backend]
-    # Không cần IF ở đây vì nó đã phụ thuộc vào test-backend (đã có IF)
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Backend Deploy
         run: curl "${{ env.LINK_BACKEND }}"
 
-  # JOB 4: DEPLOY FRONTEND
+  # JOB 4: DEPLOY FRONTEND (Ép chạy khi Bấm nút tay)
   deploy-frontend:
     needs: check-changes
-    if: ${{ needs.check-changes.outputs.frontend == 'true' }}
+    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Frontend Deploy
         run: curl "${{ env.LINK_FRONTEND }}"
 
-  # JOB 5: DEPLOY ADMIN
+  # JOB 5: DEPLOY ADMIN (Ép chạy khi Bấm nút tay)
   deploy-admin:
     needs: check-changes
-    if: ${{ needs.check-changes.outputs.admin == 'true' }}
+    if: github.event_name == 'workflow_dispatch' || needs.check-changes.outputs.admin == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger Admin Deploy
